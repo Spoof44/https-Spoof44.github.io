@@ -1,0 +1,333 @@
+<html><head><base href="https://authentic-photo-simulator.com/">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulateur de Photos Authentiques - Modifications Aléatoires</title>
+<style>
+    body {
+        font-family: 'Arial', sans-serif;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f8f8f8;
+        color: #333;
+    }
+    h1, h2 {
+        color: #2c3e50;
+        text-align: center;
+    }
+    #imagesContainer {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    .imageWrapper {
+        text-align: center;
+        max-width: 266px;
+        margin-bottom: 20px;
+        background-color: #fff;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    .previewImage {
+        max-width: 100%;
+        height: auto;
+        border-radius: 8px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    #uploadContainer {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    #imageUpload {
+        display: none;
+    }
+    .btn {
+        background-color: #3498db;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1em;
+        margin: 10px;
+    }
+    #progressBar {
+        width: 100%;
+        background-color: #ddd;
+        margin-top: 20px;
+    }
+    #progressBar div {
+        width: 0%;
+        height: 30px;
+        background-color: #4CAF50;
+        text-align: center;
+        line-height: 30px;
+        color: white;
+    }
+    .downloadBtn {
+        background-color: #2ecc71;
+    }
+    .changeModificationsBtn {
+        background-color: #e74c3c;
+    }
+    .modificationList {
+        background-color: #ecf0f1;
+        padding: 20px;
+        border-radius: 8px;
+        margin-top: 20px;
+    }
+    .modificationList h2 {
+        margin-top: 0;
+    }
+    .modificationList ul {
+        list-style-type: none;
+        padding: 0;
+    }
+    .modificationList li {
+        margin-bottom: 10px;
+        padding: 10px;
+        background-color: #fff;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .citySelect {
+        padding: 10px;
+        font-size: 1em;
+        border-radius: 5px;
+        border: 1px solid #bdc3c7;
+        margin-top: 10px;
+        width: 100%;
+    }
+    #downloadAllBtn {
+        display: block;
+        margin: 20px auto;
+        background-color: #9b59b6;
+    }
+</style>
+</head>
+<body>
+    <h1>Simulateur de Photos Authentiques - Modifications Aléatoires</h1>
+    
+    <div id="uploadContainer">
+        <label for="imageUpload" class="btn">Choisir des images</label>
+        <input type="file" id="imageUpload" accept="image/*" multiple>
+    </div>
+    
+    <div id="imagesContainer">
+        <!-- Les images seront ajoutées ici dynamiquement -->
+    </div>
+    
+    <button id="downloadAllBtn" class="btn">Télécharger toutes les images</button>
+    
+    <div id="progressBar">
+        <div></div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/camanjs/4.1.2/caman.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const imageUpload = document.getElementById('imageUpload');
+        const imagesContainer = document.getElementById('imagesContainer');
+        const progressBar = document.getElementById('progressBar');
+        const downloadAllBtn = document.getElementById('downloadAllBtn');
+        
+        const cities = [
+            "Dijon", "Marseille", "Metz", "Lille", "Aix en Provence", "Cannes", "Paris", "Toulouse",
+            "Brive la gaillarde", "Nice", "Bordeaux", "Lyon", "Toulon", "Angers", "Montreuil",
+            "Narbonne", "Bayonne", "Rennes", "Poitiers", "Pau", "Clermont-Ferrand", "Saint Étienne",
+            "Perpignan", "Annecy", "Nantes", "Nîmes", "Saint Raphael", "Béziers", "Tours", "Avignon"
+        ];
+        
+        let imageCount = 0;
+        
+        imageUpload.addEventListener('change', function(e) {
+            const files = e.target.files;
+            
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const reader = new FileReader();
+                
+                reader.onload = function(event) {
+                    const originalImage = event.target.result;
+                    const imageWrapper = createImageWrapper(originalImage);
+                    imagesContainer.appendChild(imageWrapper);
+                    
+                    const previewImage = imageWrapper.querySelector('.previewImage');
+                    previewImage.onload = function() {
+                        // Redimensionner l'image à 1/3 de sa taille originale
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        canvas.width = previewImage.naturalWidth / 3;
+                        canvas.height = previewImage.naturalHeight / 3;
+                        ctx.drawImage(previewImage, 0, 0, canvas.width, canvas.height);
+                        previewImage.src = canvas.toDataURL();
+                        previewImage.onload = function() {
+                            simulateAuthenticProcessing(imageWrapper);
+                        }
+                    }
+                }
+                
+                reader.readAsDataURL(file);
+            }
+        });
+        
+        function createImageWrapper(imageSrc) {
+            imageCount++;
+            const wrapper = document.createElement('div');
+            wrapper.className = 'imageWrapper';
+            wrapper.innerHTML = `
+                <img class="previewImage" alt="Aperçu de l'image ${imageCount}" src="${imageSrc}">
+                <select class="citySelect">
+                    <option value="">Choisir une ville</option>
+                    ${cities.map(city => `<option value="${city}">${city}</option>`).join('')}
+                </select>
+                <button class="downloadBtn btn" style="display: none;">Télécharger</button>
+                <button class="changeModificationsBtn btn" style="display: none;">Changer les modifications</button>
+                <div class="modificationList">
+                    <h2>Modifications apportées à l'image ${imageCount}</h2>
+                    <ul class="modificationsList"></ul>
+                </div>
+            `;
+            
+            const citySelect = wrapper.querySelector('.citySelect');
+            citySelect.addEventListener('change', function() {
+                simulateAuthenticProcessing(wrapper);
+            });
+            
+            const downloadBtn = wrapper.querySelector('.downloadBtn');
+            downloadBtn.addEventListener('click', function() {
+                downloadImage(wrapper);
+            });
+            
+            const changeModificationsBtn = wrapper.querySelector('.changeModificationsBtn');
+            changeModificationsBtn.addEventListener('click', function() {
+                simulateAuthenticProcessing(wrapper);
+            });
+            
+            return wrapper;
+        }
+        
+        function simulateAuthenticProcessing(imageWrapper) {
+            progressBar.style.display = 'block';
+            const progress = progressBar.querySelector('div');
+            let width = 0;
+            const id = setInterval(frame, 20);
+            function frame() {
+                if (width >= 100) {
+                    clearInterval(id);
+                    progressBar.style.display = 'none';
+                    imageWrapper.querySelector('.downloadBtn').style.display = 'inline-block';
+                    imageWrapper.querySelector('.changeModificationsBtn').style.display = 'inline-block';
+                } else {
+                    width++;
+                    progress.style.width = width + '%';
+                    progress.innerHTML = width + '%';
+                }
+            }
+            
+            setTimeout(() => {
+                const modifications = applyRandomModifications(imageWrapper);
+                updateModificationsList(imageWrapper, modifications);
+            }, 2000);  // Délai de 2 secondes pour simuler un traitement
+        }
+        
+        function applyRandomModifications(imageWrapper) {
+            const modifications = {
+                grain: Math.floor(Math.random() * 20),
+                contrast: Math.floor(Math.random() * 30) - 15,
+                vignette: Math.floor(Math.random() * 50),
+                deadPixels: Math.floor(Math.random() * 20),
+                metadata: generateRandomMetadata(imageWrapper.querySelector('.citySelect').value)
+            };
+            
+            Caman(imageWrapper.querySelector('.previewImage'), function() {
+                this.revert(false);
+                this.noise(modifications.grain);
+                this.contrast(modifications.contrast);
+                this.vignette(modifications.vignette + '%', 30);
+                
+                // Simulation de points morts
+                const canvas = this.canvas;
+                const ctx = canvas.getContext('2d');
+                for (let i = 0; i < modifications.deadPixels; i++) {
+                    const x = Math.random() * canvas.width;
+                    const y = Math.random() * canvas.height;
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                    ctx.beginPath();
+                    ctx.arc(x, y, 1, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+                
+                this.render();
+            });
+            
+            return modifications;
+        }
+        
+        function generateRandomMetadata(selectedCity) {
+            const cameras = ['Canon EOS 5D', 'Nikon D850', 'Sony A7III', 'Fujifilm X-T4', 'Leica M10'];
+            const lenses = ['24-70mm f/2.8', '50mm f/1.4', '70-200mm f/2.8', '35mm f/1.8', '85mm f/1.2'];
+            const years = ['2018', '2019', '2020', '2021', '2022'];
+            
+            return {
+                camera: cameras[Math.floor(Math.random() * cameras.length)],
+                lens: lenses[Math.floor(Math.random() * lenses.length)],
+                date: `${years[Math.floor(Math.random() * years.length)]}-${String(Math.floor(Math.random() * 12) + 1).padStart(2, '0')}-${String(Math.floor(Math.random() * 28) + 1).padStart(2, '0')}`,
+                location: selectedCity || 'Non spécifié'
+            };
+        }
+        
+        function updateModificationsList(imageWrapper, modifications) {
+            const modificationsList = imageWrapper.querySelector('.modificationsList');
+            modificationsList.innerHTML = `
+                <li>Grain : ${modifications.grain}</li>
+                <li>Contraste : ${modifications.contrast > 0 ? '+' : ''}${modifications.contrast}</li>
+                <li>Vignette : ${modifications.vignette}%</li>
+                <li>Points morts : ${modifications.deadPixels}</li>
+                <li>Métadonnées :
+                    <ul>
+                        <li>Appareil : ${modifications.metadata.camera}</li>
+                        <li>Objectif : ${modifications.metadata.lens}</li>
+                        <li>Date : ${modifications.metadata.date}</li>
+                        <li>Lieu : ${modifications.metadata.location}</li>
+                    </ul>
+                </li>
+            `;
+        }
+        
+        function downloadImage(imageWrapper) {
+            const canvas = imageWrapper.querySelector('.previewImage');
+            const dataURL = canvas.toDataURL('image/jpeg');
+            const link = document.createElement('a');
+            link.download = `authentic_photo_${Date.now()}.jpg`;
+            link.href = dataURL;
+            link.click();
+        }
+        
+        downloadAllBtn.addEventListener('click', function() {
+            const zip = new JSZip();
+            const imageWrappers = document.querySelectorAll('.imageWrapper');
+            let count = 0;
+            
+            imageWrappers.forEach((wrapper, index) => {
+                const canvas = wrapper.querySelector('.previewImage');
+                const dataURL = canvas.toDataURL('image/jpeg').split(',')[1];
+                zip.file(`authentic_photo_${index + 1}.jpg`, dataURL, {base64: true});
+                count++;
+                
+                if (count === imageWrappers.length) {
+                    zip.generateAsync({type: "blob"}).then(function(content) {
+                        saveAs(content, "authentic_photos.zip");
+                    });
+                }
+            });
+        });
+    });
+    </script>
+</body>
+</html>
